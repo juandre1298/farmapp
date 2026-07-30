@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_29_191800) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_30_131947) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -26,6 +26,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_29_191800) do
     t.index ["medicine_id"], name: "index_batches_on_medicine_id"
     t.check_constraint "initial_qty >= 0", name: "chk_batches_initial_qty_non_negative"
     t.check_constraint "remaining_qty >= 0", name: "chk_batches_remaining_qty_non_negative"
+  end
+
+  create_table "invoices", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.decimal "total_amount"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_invoices_on_user_id"
+    t.check_constraint "total_amount >= 0::numeric", name: "chk_invoices_total_amount_non_negative"
   end
 
   create_table "locations", force: :cascade do |t|
@@ -59,4 +68,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_29_191800) do
 
   add_foreign_key "batches", "locations"
   add_foreign_key "batches", "medicines"
+  add_foreign_key "invoices", "users"
 end
