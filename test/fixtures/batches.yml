@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  initial_qty: 1
+  remaining_qty: 1
+  expiration_date: 2026-07-29
+  medicine: one
+  location: one
+
+two:
+  initial_qty: 1
+  remaining_qty: 1
+  expiration_date: 2026-07-29
+  medicine: two
+  location: two

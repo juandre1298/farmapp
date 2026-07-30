@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_29_185540) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_29_191800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "batches", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "expiration_date", null: false
+    t.integer "initial_qty", null: false
+    t.bigint "location_id", null: false
+    t.bigint "medicine_id", null: false
+    t.integer "remaining_qty", null: false
+    t.datetime "updated_at", null: false
+    t.index ["location_id"], name: "index_batches_on_location_id"
+    t.index ["medicine_id"], name: "index_batches_on_medicine_id"
+    t.check_constraint "initial_qty >= 0", name: "chk_batches_initial_qty_non_negative"
+    t.check_constraint "remaining_qty >= 0", name: "chk_batches_remaining_qty_non_negative"
+  end
 
   create_table "locations", force: :cascade do |t|
     t.string "address"
@@ -42,4 +56,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_29_185540) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
   end
+
+  add_foreign_key "batches", "locations"
+  add_foreign_key "batches", "medicines"
 end
