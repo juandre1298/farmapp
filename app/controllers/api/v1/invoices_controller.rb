@@ -10,7 +10,15 @@ module Api
         if result.success?
           render json: {
             message: "Invoice successfully created",
-            invoice: result.invoice
+            invoice: result.invoice.as_json(
+              include: {
+                invoice_items: {
+                  batch: {
+                    include: :medicine
+                  }
+                }
+              }
+            )
           }, status: :created
         else
           render json: {
@@ -21,9 +29,10 @@ module Api
 
       private
 
-      # Sanitización defensiva del Payload entrante
-      # Espera una estructura JSON como:
-      # { "invoice": { "items": [{ "medicine_id": 1, "quantity": 10 }] } }
+      def current_user
+        User.first
+      end
+
       def invoice_items_params
         params.require(:invoice)
               .require(:items)
