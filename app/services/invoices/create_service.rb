@@ -21,31 +21,59 @@ module Invoices
         total_accumulated = 0
 
         items_params.each do |item_data|
-          batch = Batch.lock.find(item_data[:batch_id])
           requested_qty = item_data[:quantity].to_i
 
           if requested_qty <= 0
-            custom_error = "Quantity for batch ##{batch.id} must be greater than zero."
+            custom_error = "Quantity for medicine must be greater than zero."
             raise ActiveRecord::Rollback
           end
 
-          if batch.remaining_qty < requested_qty
-            custom_error = "Insufficient stock for #{batch.medicine.name} (Batch ##{batch.id}). Available: #{batch.remaining_qty}."
+          medicine = Medicine.find_by(id: item_data[:medicine_id])
+          unless medicine
+            custom_error = "Medicine ##{item_data[:medicine_id]} not found."
             raise ActiveRecord::Rollback
           end
 
-          batch.remaining_qty -= requested_qty
-          batch.save!
+          # Base Scope para FEFO sin lock (para poder usar .sum)
+          fefo_scope = Batch.where(medicine_id: medicine.id)
+                            .where("remaining_qty > 0 AND expiration_date >= ?", Date.current)
 
-          unit_price = batch.medicine.unit_price
+          # 1. Validar el total disponible mediante SUM sin el .lock
+          total_available = fefo_scope.sum(:remaining_qty)
 
-          invoice.invoice_items.build(
-            batch: batch,
-            quantity: requested_qty,
-            unit_price_at_sale: unit_price
-          )
+          if requested_qty > total_available
+            custom_error = "Insufficient stock for #{medicine.name}. Requested: #{requested_qty}, Available: #{total_available}."
+            raise ActiveRecord::Rollback
+          end
 
-          total_accumulated += (requested_qty * unit_price)
+          unit_price = medicine.unit_price
+
+          # 2. Cargar y BLOQUEAR los registros de filas individuales (FOR UPDATE)
+          locked_batches = fefo_scope.order(expiration_date: :asc).lock
+
+          # Iteración para consumir los lotes de forma secuencial
+          locked_batches.each do |batch|
+            break if requested_qty <= 0
+
+            invoice_items_qty = [ batch.remaining_qty, requested_qty ].min
+
+            batch.remaining_qty -= invoice_items_qty
+            batch.save!
+
+            requested_qty -= invoice_items_qty
+
+            invoice.invoice_items.build(
+              batch: batch,
+              quantity: invoice_items_qty,
+              unit_price_at_sale: unit_price
+            )
+
+            total_accumulated += (invoice_items_qty * unit_price)
+          end
+          if requested_qty > 0
+            custom_error = "Concurrent update detected: Stock for #{medicine.name} was reduced during processing. Please try again."
+            raise ActiveRecord::Rollback
+          end
         end
 
         invoice.total_amount = total_accumulated
