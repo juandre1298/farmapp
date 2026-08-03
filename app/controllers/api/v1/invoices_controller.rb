@@ -1,9 +1,33 @@
+# app/controllers/api/v1/invoices_controller.rb
 module Api
   module V1
     class InvoicesController < ApplicationController
+      def index
+        query_result = InvoicesQuery.call(filter_params)
+
+        render json: {
+          message: "Invoices successfully fetched",
+          meta: query_result[:meta],
+          invoices: query_result[:records].as_json(
+            include: {
+              invoice_items: {
+                include: {
+                  batch: {
+                    include: :medicine
+                  }
+                }
+              }
+            }
+          )
+        }, status: :ok
+      end
+
+      # POST /api/v1/invoices
       def create
+        user = User.find_by(role: "admin") || User.first
+
         result = Invoices::CreateService.call(
-          user: current_user,
+          user: user,
           items_params: invoice_items_params
         )
 
@@ -13,8 +37,10 @@ module Api
             invoice: result.invoice.as_json(
               include: {
                 invoice_items: {
-                  batch: {
-                    include: :medicine
+                  include: {
+                    batch: {
+                      include: :medicine
+                    }
                   }
                 }
               }
@@ -29,8 +55,8 @@ module Api
 
       private
 
-      def current_user
-        User.first
+      def filter_params
+        params.permit(:user_id, :start_date, :end_date, :page, :per_page, :order_dir)
       end
 
       def invoice_items_params
