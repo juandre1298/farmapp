@@ -83,6 +83,7 @@ module Invoices
       end
 
       if created_invoice&.persisted?
+        SendInvoiceEmailJob.perform_later(created_invoice)
         Result.new(success?: true, invoice: created_invoice, error: nil)
       else
         Result.new(success?: false, invoice: nil, error: custom_error || "Couldn't process the sale. Check Parameters.")

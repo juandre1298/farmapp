@@ -1,0 +1,19 @@
+<!-- app/views/invoice_mailer/creation_notification.html.erb -->
+<h2>Hola <%= @user.first_name %>, ¡gracias por tu compra!</h2>
+
+<p>Se ha generado exitosamente tu factura <strong>#<%= @invoice.id %></strong>.</p>
+
+<h3>Detalle de la Compra:</h3>
+<ul>
+  <% @invoice.invoice_items.each do |item| %>
+    <li>
+      <%= item.batch.medicine.name %> x<%= item.quantity %> - 
+      $<%= item.unit_price_at_sale %> c/u 
+      (Subtotal: $<%= item.quantity * item.unit_price_at_sale %>)
+    </li>
+  <% end %>
+</ul>
+
+<p><strong>Total Cobrado: $<%= @invoice.total_amount %></strong></p>
+
+<p>Atentamente,<br>El equipo de Farmapp</p>
