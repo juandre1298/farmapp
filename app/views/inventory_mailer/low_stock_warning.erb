@@ -1,0 +1,10 @@
+<h2>Alerta de Inventario</h2>
+
+<p>Se debe realizar compra de <strong>#<%= @medicine.id %>, <%= @medicine.name %></strong>.</p>
+
+<h3>Detalle:</h3>
+
+<p>Solo quedan <strong><%= @medicine.total_active_stock %></strong> unidades</strong> </p>
+<p>Comprar almenos <strong><%= @medicine.warning_stock_level %></strong> unidades</strong> </p>
+
+<p>Atentamente,<br>El equipo de Farmapp</p>

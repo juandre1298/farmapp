@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_205323) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_04_210648) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -166,10 +166,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_205323) do
   create_table "medicines", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description"
+    t.boolean "low_stock_flag", default: false
     t.string "name", null: false
     t.string "therapeutic_class", null: false
     t.decimal "unit_price", precision: 10, scale: 2, default: "0.0", null: false
     t.datetime "updated_at", null: false
+    t.integer "warning_stock_level"
     t.index ["therapeutic_class"], name: "index_medicines_on_therapeutic_class"
     t.check_constraint "unit_price >= 0::numeric", name: "chk_medicines_unit_price_non_negative"
   end

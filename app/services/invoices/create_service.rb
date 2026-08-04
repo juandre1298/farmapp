@@ -34,11 +34,9 @@ module Invoices
             raise ActiveRecord::Rollback
           end
 
-          # Base Scope para FEFO sin lock (para poder usar .sum)
           fefo_scope = Batch.where(medicine_id: medicine.id)
                             .where("remaining_qty > 0 AND expiration_date >= ?", Date.current)
 
-          # 1. Validar el total disponible mediante SUM sin el .lock
           total_available = fefo_scope.sum(:remaining_qty)
 
           if requested_qty > total_available
@@ -47,11 +45,8 @@ module Invoices
           end
 
           unit_price = medicine.unit_price
-
-          # 2. Cargar y BLOQUEAR los registros de filas individuales (FOR UPDATE)
           locked_batches = fefo_scope.order(expiration_date: :asc).lock
 
-          # Iteración para consumir los lotes de forma secuencial
           locked_batches.each do |batch|
             break if requested_qty <= 0
 
@@ -70,9 +65,18 @@ module Invoices
 
             total_accumulated += (invoice_items_qty * unit_price)
           end
+
           if requested_qty > 0
             custom_error = "Concurrent update detected: Stock for #{medicine.name} was reduced during processing. Please try again."
             raise ActiveRecord::Rollback
+          end
+
+          current_active_stock = medicine.total_active_stock
+
+          if medicine.warning_stock_level && current_active_stock <= medicine.warning_stock_level
+            medicine.update_column(:low_stock_flag, true) unless medicine.low_stock_flag?
+
+            SendLowStockAlertJob.perform_later(medicine.id)
           end
         end
 
@@ -83,7 +87,7 @@ module Invoices
       end
 
       if created_invoice&.persisted?
-        SendInvoiceEmailJob.perform_later(created_invoice)
+        SendInvoiceEmailJob.perform_later(created_invoice.id)
         Result.new(success?: true, invoice: created_invoice, error: nil)
       else
         Result.new(success?: false, invoice: nil, error: custom_error || "Couldn't process the sale. Check Parameters.")
