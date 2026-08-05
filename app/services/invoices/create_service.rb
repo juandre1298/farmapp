@@ -15,6 +15,7 @@ module Invoices
     def call
       created_invoice = nil
       custom_error = nil
+      medicines_to_check_stock = []
 
       ActiveRecord::Base.transaction do
         invoice = user.invoices.build(total_amount: 0)
@@ -67,21 +68,23 @@ module Invoices
           end
 
           if requested_qty > 0
-            custom_error = "Concurrent update detected: Stock for #{medicine.name} was reduced during processing. Please try again."
+            custom_error = "Concurrent update detected for #{medicine.name}. Please try again."
             raise ActiveRecord::Rollback
           end
 
-          current_active_stock = medicine.total_active_stock
-
-          if medicine.warning_stock_level && current_active_stock <= medicine.warning_stock_level
-            medicine.update_column(:low_stock_flag, true) unless medicine.low_stock_flag?
-
-            SendLowStockAlertJob.perform_later(medicine.id)
-          end
+          medicines_to_check_stock << medicine
         end
 
         invoice.total_amount = total_accumulated
         invoice.save!
+
+        medicines_to_check_stock.uniq.each do |medicine|
+          current_stock = medicine.total_active_stock
+          if medicine.warning_stock_level && current_active_stock <= medicine.warning_stock_level
+            medicine.update_column(:low_stock_flag, true) unless medicine.low_stock_flag?
+            SendLowStockAlertJob.perform_later(medicine.id)
+          end
+        end
 
         created_invoice = invoice
       end
